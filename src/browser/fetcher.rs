@@ -18,7 +18,7 @@ use walkdir::WalkDir;
 #[cfg(not(target_os = "macos"))]
 use zip;
 
-pub const CUR_REV: &str = "1095492";
+pub const CUR_REV: &str = "131.0.6778.204";
 
 const APP_NAME: &str = "headless-chrome";
 const DEFAULT_HOST: &str = "https://storage.googleapis.com";
@@ -179,10 +179,10 @@ impl Fetcher {
         }
         #[cfg(target_os = "macos")]
         {
-            path.push("Chromium.app");
+            path.push("Google Chrome for Testing.app");
             path.push("Contents");
             path.push("MacOS");
-            path.push("Chromium");
+            path.push("Google Chrome for Testing");
         }
         #[cfg(windows)]
         {
@@ -212,7 +212,10 @@ impl Fetcher {
             // Not likely for someone to try and do this on purpose.
             return Err(anyhow!("No allowed installation directory"));
         };
-        path = path.with_extension("zip");
+        path = path.with_file_name(format!(
+            "{}.zip",
+            path.file_name().unwrap().to_str().unwrap()
+        ));
         // we need to create this directory in case it doesn't exist yet
         fs::create_dir_all(
             path.parent()
@@ -356,7 +359,7 @@ where
     #[cfg(target_os = "linux")]
     {
         format!(
-            "{}/chromium-browser-snapshots/Linux_x64/{}/{}.zip",
+            "{}/chrome-for-testing-public/{}/linux64/{}.zip",
             DEFAULT_HOST,
             revision.as_ref(),
             archive_name(revision.as_ref())
@@ -366,7 +369,7 @@ where
     #[cfg(all(target_os = "macos", not(target_arch = "aarch64")))]
     {
         format!(
-            "{}/chromium-browser-snapshots/Mac/{}/{}.zip",
+            "{}/chrome-for-testing-public/{}/mac-x64/{}.zip",
             DEFAULT_HOST,
             revision.as_ref(),
             archive_name(revision.as_ref())
@@ -376,7 +379,7 @@ where
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     {
         format!(
-            "{}/chromium-browser-snapshots/Mac_Arm/{}/{}.zip",
+            "{}/chrome-for-testing-public/{}/mac-arm64/{}.zip",
             DEFAULT_HOST,
             revision.as_ref(),
             archive_name(revision.as_ref())
@@ -386,7 +389,7 @@ where
     #[cfg(windows)]
     {
         format!(
-            "{}/chromium-browser-snapshots/Win_x64/{}/{}.zip",
+            "{}/chrome-for-testing-public/{}/win32/{}.zip",
             DEFAULT_HOST,
             revision.as_ref(),
             archive_name(revision.as_ref())
@@ -399,14 +402,21 @@ fn archive_name<R: AsRef<str>>(revision: R) -> &'static str {
     {
         drop(revision);
 
-        "chrome-linux"
+        "chrome-linux64"
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", not(target_arch = "aarch64")))]
     {
         drop(revision);
 
-        "chrome-mac"
+        "chrome-mac-x64"
+    }
+
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    {
+        drop(revision);
+
+        "chrome-mac-arm64"
     }
 
     #[cfg(windows)]
@@ -423,45 +433,12 @@ fn archive_name<R: AsRef<str>>(revision: R) -> &'static str {
 // Returns the latest chrome revision for the current platform.
 // This function will panic on unsupported platforms.
 fn latest_revision() -> Result<String> {
-    let mut url = format!("{DEFAULT_HOST}/chromium-browser-snapshots");
+    //NOT THE SAME AS THE ARTIFACTS!
+    let mut url = "https://googlechromelabs.github.io/chrome-for-testing".to_string();
 
-    #[cfg(target_os = "linux")]
-    {
-        url = format!("{url}/Linux_x64/LAST_CHANGE");
-        ureq::get(&url)
-            .call()?
-            .body_mut()
-            .read_to_string()
-            .map_err(anyhow::Error::from)
-    }
-
-    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    {
-        url = format!("{url}/Mac_Arm/LAST_CHANGE");
-        ureq::get(&url)
-            .call()?
-            .body_mut()
-            .read_to_string()
-            .map_err(anyhow::Error::from)
-    }
-
-    #[cfg(all(target_os = "macos", not(target_arch = "aarch64")))]
-    {
-        url = format!("{url}/Mac/LAST_CHANGE");
-        ureq::get(&url)
-            .call()?
-            .body_mut()
-            .read_to_string()
-            .map_err(anyhow::Error::from)
-    }
-
-    #[cfg(windows)]
-    {
-        url = format!("{url}/Win_x64/LAST_CHANGE");
-        ureq::get(&url)
-            .call()?
-            .body_mut()
-            .read_to_string()
-            .map_err(anyhow::Error::from)
-    }
+    url = format!("{url}/LATEST_RELEASE_STABLE");
+    ureq::get(&url)
+        .call()?
+        .into_string()
+        .map_err(anyhow::Error::from)
 }
