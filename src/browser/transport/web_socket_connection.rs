@@ -1,7 +1,7 @@
 use std::net::TcpStream;
-use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::mpsc;
 
 use anyhow::Result;
 use log::{debug, info, trace, warn};
@@ -10,7 +10,7 @@ use tungstenite::protocol::WebSocketConfig;
 use tungstenite::stream::MaybeTlsStream;
 use url::Url;
 
-use crate::types::{parse_raw_message, Message};
+use crate::types::{Message, parse_raw_message};
 
 type TungsteniteWebsocketConnection = tungstenite::protocol::WebSocket<MaybeTlsStream<TcpStream>>;
 
@@ -155,12 +155,12 @@ impl WebSocketConnection {
     )> {
         let mut client = tungstenite::client::connect_with_config(
             ws_url.as_str(),
-            Some(WebSocketConfig {
-                max_message_size: None,
-                max_frame_size: None,
-                accept_unmasked_frames: true,
-                ..Default::default()
-            }),
+            Some(
+                WebSocketConfig::default()
+                    .accept_unmasked_frames(true)
+                    .max_message_size(None)
+                    .max_frame_size(None),
+            ),
             u8::MAX - 1,
         )?;
 

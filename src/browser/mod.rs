@@ -1,14 +1,14 @@
-use std::sync::mpsc;
-use std::sync::mpsc::{RecvTimeoutError, TryRecvError};
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::mpsc;
+use std::sync::mpsc::{RecvTimeoutError, TryRecvError};
 use std::time::Duration;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use log::{debug, error, info, trace};
 
 use process::Process;
-pub use process::{LaunchOptions, LaunchOptionsBuilder, DEFAULT_ARGS};
+pub use process::{DEFAULT_ARGS, LaunchOptions, LaunchOptionsBuilder};
 pub use tab::Tab;
 pub use transport::ConnectionClosed;
 use transport::Transport;
@@ -16,14 +16,14 @@ use url::Url;
 use which::which;
 
 use crate::protocol::cdp::{
-    self, types::Event, types::Method, Browser as B, Target, Target::GetTargets,
+    self, Browser as B, Target, Target::GetTargets, types::Event, types::Method,
 };
 
 use crate::browser::context::Context;
 use crate::util;
-use Target::{CreateTarget, SetDiscoverTargets};
 use B::GetVersion;
 pub use B::GetVersionReturnObject;
+use Target::{CreateTarget, SetDiscoverTargets};
 
 #[cfg(feature = "fetch")]
 pub use fetcher::FetcherOptions;
@@ -168,7 +168,10 @@ impl Browser {
 
         // so we get events like 'targetCreated' and 'targetDestroyed'
         trace!("Calling set discover");
-        browser.call_method(SetDiscoverTargets { discover: true })?;
+        browser.call_method(SetDiscoverTargets {
+            discover: true,
+            filter: None,
+        })?;
 
         Ok(browser)
     }
@@ -234,6 +237,7 @@ impl Browser {
             enable_begin_frame_control: None,
             new_window: None,
             background: None,
+            for_tab: None,
         };
         self.new_tab_with_options(default_blank_tab)
     }
@@ -290,7 +294,7 @@ impl Browser {
 
     /// Adds tabs that have not been opened with new_tab to the list of tabs
     pub fn register_missing_tabs(&self) {
-        let targets = self.call_method(GetTargets(None));
+        let targets = self.call_method(GetTargets { filter: None });
 
         let mut tabs_lock = self.inner.tabs.lock().unwrap();
         let mut previous_target_id: String = String::default();
@@ -399,23 +403,30 @@ impl Browser {
                                 }
                             }
                             Event::TargetInfoChanged(ev) => {
-                                let target_info = ev.params.target_info;
+                                let target_info = &ev.params.target_info;
                                 trace!("Target info changed: {:?}", target_info);
                                 if target_info.Type == "page"
                                     && !target_info.url.starts_with("devtools://")
                                 {
                                     let locked_tabs = tabs.lock().unwrap();
-                                    let updated_tab = locked_tabs
+                                    if let Some(updated_tab) = locked_tabs
                                         .iter()
                                         .find(|tab| *tab.get_target_id() == target_info.target_id)
-                                        .expect("got TargetInfoChanged event about a tab not in our list");
-                                    updated_tab.update_target_info(target_info);
+                                    {
+                                        updated_tab.update_target_info(target_info.clone());
+                                    } else {
+                                        let raw_event = format!("{ev:?}");
+                                        trace!(
+                                            "Target info changed unhandled event: {}",
+                                            raw_event.chars().take(50).collect::<String>()
+                                        );
+                                    }
                                 }
                             }
                             Event::AttachedToTarget(ev) => {
                                 let target_info = ev.params.target_info;
                                 trace!("Attached To Target : {:?}", target_info);
-                                // can be usefull when knowing if there is a devtools tab open and
+                                // can be useful when knowing if there is a devtools tab open and
                                 // to which tab it is connected (parent)
                             }
                             Event::TargetDestroyed(ev) => {

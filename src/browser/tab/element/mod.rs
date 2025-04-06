@@ -15,7 +15,7 @@ mod box_model;
 use crate::util;
 pub use box_model::{BoxModel, ElementQuad};
 
-use crate::protocol::cdp::{Page, Runtime, CSS, DOM};
+use crate::protocol::cdp::{CSS, DOM, Page, Runtime};
 
 #[derive(Debug, Error)]
 #[error("Couldnt get element quad")]
@@ -36,7 +36,7 @@ pub struct Element<'a> {
     pub value: String,
 }
 
-impl<'a> Debug for Element<'a> {
+impl Debug for Element<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(f, "Element {}", self.backend_node_id)?;
         Ok(())
@@ -311,6 +311,8 @@ impl<'a> Element<'a> {
                 execution_context_id: None,
                 object_group: None,
                 throw_on_side_effect: None,
+                serialization_options: None,
+                unique_context_id: None,
             })?
             .result;
 

@@ -1,10 +1,10 @@
 use crate::protocol::cdp::{
-    types::{Event, JsUInt},
     Browser,
+    DOM::Node,
     Network::{CookieParam, DeleteCookies},
     Page,
     Page::PrintToPDF,
-    DOM::Node,
+    types::{Event, JsUInt},
 };
 
 use serde::{Deserialize, Serialize};
@@ -108,6 +108,10 @@ pub struct PrintToPdfOptions {
     pub prefer_css_page_size: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transfer_mode: Option<TransferMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generate_document_outline: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generate_tagged_pdf: Option<bool>,
 }
 
 pub fn parse_raw_message(raw_message: &str) -> Result<Message> {
@@ -150,6 +154,7 @@ impl From<CookieParam> for DeleteCookies {
             url: v.url,
             domain: v.domain,
             path: v.path,
+            partition_key: v.partition_key,
         }
     }
 }
@@ -220,8 +225,9 @@ impl Default for PrintToPDF {
         PrintToPDF {
             display_header_footer: None,
             footer_template: None,
+            generate_document_outline: None,
+            generate_tagged_pdf: None,
             header_template: None,
-            ignore_invalid_page_ranges: None,
             landscape: None,
             margin_bottom: None,
             margin_left: None,
@@ -357,7 +363,7 @@ mod tests {
             // browser event:
             "{\"method\":\"Target.attachedToTarget\",\"params\":{\"sessionId\":\"8BEF122ABAB0C43B5729585A537F424A\",\"targetInfo\":{\"targetId\":\"26DEBCB2A45BEFC67A84012AC32C8B2A\",\"type\":\"page\",\"title\":\"\",\"url\":\"about:blank\",\"attached\":true,\"browserContextId\":\"946423F3D201EFA1A5FCF3462E340C15\"},\"waitingForDebugger\":false}}",
             // browser event which indicates target method response:
-            "{\"method\":\"Target.receivedMessageFromTarget\",\"params\":{\"sessionId\":\"8BEF122ABAB0C43B5729585A537F424A\",\"message\":\"{\\\"id\\\":43473,\\\"result\\\":{\\\"data\\\":\\\"iVBORw0KGgoAAAANSUhEUgAAAyAAAAJYCAYAAACadoJwAAAMa0lEQVR4nO3XMQEAIAzAMMC/5+GiHCQK+nbPzCwAAIDAeR0AAAD8w4AAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABII=\\\"}}\",\"targetId\":\"26DEBCB2A45BEFC67A84012AC32C8B2A\"}}"
+            "{\"method\":\"Target.receivedMessageFromTarget\",\"params\":{\"sessionId\":\"8BEF122ABAB0C43B5729585A537F424A\",\"message\":\"{\\\"id\\\":43473,\\\"result\\\":{\\\"data\\\":\\\"iVBORw0KGgoAAAANSUhEUgAAAyAAAAJYCAYAAACadoJwAAAMa0lEQVR4nO3XMQEAIAzAMMC/5+GiHCQK+nbPzCwAAIDAeR0AAAD8w4AAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABAxoAAAAAZAwIAAGQMCAAAkDEgAABII=\\\"}}\",\"targetId\":\"26DEBCB2A45BEFC67A84012AC32C8B2A\"}}",
         ];
 
         for msg_string in &example_message_strings {

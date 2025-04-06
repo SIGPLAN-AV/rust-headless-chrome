@@ -1,7 +1,7 @@
 use std::{
     borrow::BorrowMut,
     ffi::OsStr,
-    io::{prelude::*, BufRead, BufReader},
+    io::{BufRead, BufReader, prelude::*},
     net,
     process::{Child, Command, Stdio},
     time::Duration,
@@ -12,15 +12,15 @@ use std::cell::RefCell;
 
 use derive_builder::Builder;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use log::*;
+use rand::rng;
 use rand::seq::SliceRandom;
-use rand::thread_rng;
 use regex::Regex;
 use thiserror::Error;
 use url::Url;
 #[cfg(windows)]
-use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
+use winreg::{RegKey, enums::HKEY_LOCAL_MACHINE};
 
 #[cfg(not(feature = "fetch"))]
 use crate::browser::default_executable;
@@ -176,7 +176,7 @@ pub struct LaunchOptions<'a> {
     pub proxy_server: Option<&'a str>,
 }
 
-impl<'a> Default for LaunchOptions<'a> {
+impl Default for LaunchOptions<'_> {
     fn default() -> Self {
         LaunchOptions {
             headless: true,
@@ -503,7 +503,7 @@ impl Process {
 
 fn get_available_port() -> Option<u16> {
     let mut ports: Vec<u16> = (8000..9000).collect();
-    ports.shuffle(&mut thread_rng());
+    ports.shuffle(&mut rng());
     ports.iter().find(|port| port_is_available(**port)).copied()
 }
 
