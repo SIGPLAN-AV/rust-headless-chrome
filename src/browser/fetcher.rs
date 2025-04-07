@@ -433,12 +433,13 @@ fn archive_name<R: AsRef<str>>(revision: R) -> &'static str {
 // Returns the latest chrome revision for the current platform.
 // This function will panic on unsupported platforms.
 fn latest_revision() -> Result<String> {
-    //NOT THE SAME AS THE ARTIFACTS!
+    // NOT THE SAME AS THE ARTIFACTS!
     let mut url = "https://googlechromelabs.github.io/chrome-for-testing".to_string();
 
     url = format!("{url}/LATEST_RELEASE_STABLE");
     ureq::get(&url)
         .call()?
-        .into_string()
+        .body_mut()
+        .read_to_string()
         .map_err(anyhow::Error::from)
 }
